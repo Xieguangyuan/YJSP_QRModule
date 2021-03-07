@@ -1,101 +1,26 @@
-#include <iostream>
-#include <zbar.h>
 #include <opencv2/opencv.hpp>
-using namespace cv;
-using namespace std;
-using namespace zbar;
-typedef struct
-{
-    string type;
-    string data;
-    vector<Point> location;
-} decodedObject;
+#include "src/qrscanner.hpp"
 
-// Find and decode barcodes and QR codes
-void decode(Mat &im, vector<decodedObject> &decodedObjects)
-{
-
-    // Create zbar scanner
-    ImageScanner scanner;
-
-    // Configure scanner
-    scanner.set_config(ZBAR_NONE, ZBAR_CFG_ENABLE, 1);
-
-    // Convert image to grayscale
-    Mat imGray;
-    cvtColor(im, imGray, cv::COLOR_BGR2GRAY);
-
-    // Wrap image data in a zbar image
-    Image image(im.cols, im.rows, "Y800", (uchar *)imGray.data, im.cols * im.rows);
-
-    // Scan the image for barcodes and QRCodes
-    int n = scanner.scan(image);
-
-    // Print results
-    for (Image::SymbolIterator symbol = image.symbol_begin(); symbol != image.symbol_end(); ++symbol)
-    {
-        decodedObject obj;
-
-        obj.type = symbol->get_type_name();
-        obj.data = symbol->get_data();
-
-        // Print type and data
-        cout << "Type : " << obj.type << endl;
-        cout << "Data : " << obj.data << endl
-             << endl;
-
-        // Obtain location
-        for (int i = 0; i < symbol->get_location_size(); i++)
-        {
-            obj.location.push_back(Point(symbol->get_location_x(i), symbol->get_location_y(i)));
-        }
-
-        decodedObjects.push_back(obj);
-    }
-}
-// Display barcode and QR code location
-void display(Mat &im, vector<decodedObject> &decodedObjects)
-{
-    // Loop over all decoded objects
-    for (int i = 0; i < decodedObjects.size(); i++)
-    {
-        vector<Point> points = decodedObjects[i].location;
-        vector<Point> hull;
-
-        // If the points do not form a quad, find convex hull
-        if (points.size() > 4)
-            convexHull(points, hull);
-        else
-            hull = points;
-
-        // Number of points in the convex hull
-        int n = hull.size();
-
-        for (int j = 0; j < n; j++)
-        {
-            line(im, hull[j], hull[(j + 1) % n], Scalar(255, 0, 0), 1);
-        }
-    }
-
-    // Display results
-    imshow("test", im);
-    waitKey(10);
-}
 int main(int argc, char *argv[])
 {
+    QRSCanner myScanner;
+    std::vector<decodedObject> decodeOB;
 
     cv::VideoCapture cap(0);
-    // Read image
-    Mat im;
-    vector<decodedObject> decodedObjects;
+
     while (true)
     {
-        cap.read(im);
-        // Variable for decoded objects
-        // Find and decode barcodes and QR codes
-        decode(im, decodedObjects);
-        // Display location
-        display(im, decodedObjects);
+        cv::Mat tmpMat;
+        cap >> tmpMat;
+
+        decodeOB = myScanner.QRCodeDecoder(tmpMat);
+        tmpMat = myScanner.QRCodeDrawer(decodeOB, tmpMat);
+        for (size_t i = 0; i < decodeOB.size(); i++)
+        {
+            std::cout << decodeOB[i].data << "\n";
+        }
+
+        imshow("test", tmpMat);
+        cv::waitKey(10);
     }
-    return EXIT_SUCCESS;
 }
